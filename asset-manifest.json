@@ -1,0 +1,16 @@
+{
+  "files": {
+    "main.css": "/static/css/main.4b495da2.css",
+    "main.js": "/static/js/main.48f836b5.js",
+    "static/js/787.23170c61.chunk.js": "/static/js/787.23170c61.chunk.js",
+    "static/media/제목 없음.png": "/static/media/제목 없음.2c30fd3f8c0510d57af7.png",
+    "index.html": "/index.html",
+    "main.4b495da2.css.map": "/static/css/main.4b495da2.css.map",
+    "main.48f836b5.js.map": "/static/js/main.48f836b5.js.map",
+    "787.23170c61.chunk.js.map": "/static/js/787.23170c61.chunk.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.4b495da2.css",
+    "static/js/main.48f836b5.js"
+  ]
+}

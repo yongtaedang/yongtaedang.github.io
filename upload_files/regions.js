@@ -46,8 +46,9 @@ function makeDraggable(element, onStart, onMove, onEnd, threshold = 5) {
     };
 }
 export class Region extends EventEmitter {
-    constructor(params, totalDuration) {
+    constructor(params, totalDuration, plugin) { // plugin 매개변수 추가
         super();
+        this.plugin = plugin; // 추가
         this.totalDuration = totalDuration;
         this.id = params.id || `region-${Math.random().toString(32).slice(2)}`;
         this.start = params.start;
@@ -93,83 +94,47 @@ export class Region extends EventEmitter {
             const leftHandle = document.createElement('div');
             leftHandle.setAttribute('data-resize', 'left');
             leftHandle.setAttribute('style', `
-        position: absolute;
-        z-index: 2;
-        width: 6px;
-        height: 100%;
-        top: 0;
-        left: 0;
-        border-left: 2px solid rgba(0, 0, 0, 0.5);
-        border-radius: 2px 0 0 2px;
-        cursor: ${this.resize ? 'ew-resize' : 'default'};
-        word-break: keep-all;
-      `);
+                position: absolute;
+                z-index: 2;
+                width: 6px;
+                height: 100%;
+                top: 0;
+                left: 0;
+                border-left: 2px solid rgba(0, 0, 0, 0.5);
+                border-radius: 2px 0 0 2px;
+                cursor: default; /* 화살표가 뜨지 않도록 기본 커서로 설정 */
+                pointer-events: none; /* 마우스 이벤트 차단 */
+              `);
             leftHandle.setAttribute('part', 'region-handle region-handle-left');
-            const rightHandle = leftHandle.cloneNode();
+        
+            const rightHandle = document.createElement('div');
             rightHandle.setAttribute('data-resize', 'right');
-            rightHandle.style.left = '';
-            rightHandle.style.right = '0';
-            rightHandle.style.borderRight = rightHandle.style.borderLeft;
-            rightHandle.style.borderLeft = '';
-            rightHandle.style.borderRadius = '0 2px 2px 0';
+            rightHandle.setAttribute('style', `
+                position: absolute;
+                z-index: 2;
+                width: 6px;
+                height: 100%;
+                top: 0;
+                right: 0;
+                border-right: 2px solid rgba(0, 0, 0, 0.5);
+                border-radius: 0 2px 2px 0;
+                cursor: ew-resize; /* 오른쪽 핸들은 이동 가능하도록 설정 */
+              `);
             rightHandle.setAttribute('part', 'region-handle region-handle-right');
+        
             element.appendChild(leftHandle);
             element.appendChild(rightHandle);
-        }   
+        }
         return element;
     }
-    /*
     renderPosition() {
         const start = this.start / this.totalDuration;
         const end = this.end / this.totalDuration;
+        //console.log('Region ID:', this.id);
         this.element.style.left = `${start * 100}%`;
         this.element.style.width = `${(end - start) * 100}%`;
+
     }
-    */
-
-    renderPosition(action_resize) {
-        const start = this.start / this.totalDuration;
-        const end = this.end / this.totalDuration;
-        this.element.style.left = `${start * 100}%`;
-        this.element.style.width = `${(end - start) * 100}%`;
-        /*
-        if (typeof action_resize !== 'undefined') {
-            if (action_resize === 'left') {
-                console.log('왼쪽 건드림');
-                this.element.style.left = `${start * 100}%`;
-                this.element.style.width = `${(end - start) * 100}%`;
-                const prevElement = $(this.element).prev();
-                if (prevElement.length) {
-                    prevElement[0].style.width = `${start * 100}%`;
-                }
-            }
-            if (action_resize === 'right') {
-                console.log('오른쪽 건드림');
-                //this.element.style.left = `${start * 100}%`;
-                this.element.style.width = `${(end - start) * 100}%`;
-                const nextElement = $(this.element).next();
-                if (nextElement.length) {
-                    nextElement[0].style.left = `${(end - start) * 100}%`;
-                }
-            }
-        } else {
-            console.log('여기는 최초');
-
-        }
-        
-        
-        const prevElement = $(this.element).prev();
-        console.log(prevElement.end)
-        if (prevElement.length) {
-            prevElement[0].style.width = `${start * 100}%`;
-        }
-      
-        const nextElement = $(this.element).next();
-        if (nextElement.length) {
-            nextElement[0].style.left = `${(end - start) * 100}%`;
-        }
-        */
-      }
     initMouseEvents() {
         const { element } = this;
         element.addEventListener('click', (e) => this.emit('click', e));
@@ -180,7 +145,6 @@ export class Region extends EventEmitter {
         makeDraggable(element, () => this.onStartMoving(), (dx) => this.onMove(dx), () => this.onEndMoving());
         // Resize
         const resizeThreshold = 1;
-        
         makeDraggable(element.querySelector('[data-resize="left"]'), () => null, (dx) => this.onResize(dx, 'start'), () => this.onEndResizing(), resizeThreshold);
         makeDraggable(element.querySelector('[data-resize="right"]'), () => null, (dx) => this.onResize(dx, 'end'), () => this.onEndResizing(), resizeThreshold);
     }
@@ -195,41 +159,15 @@ export class Region extends EventEmitter {
         this.element.style.cursor = 'grab';
         this.emit('update-end');
     }
-    onUpdate(dx, sides, action_resize) {
+    onUpdate(dx, sides) {
         if (!this.element.parentElement)
             return;
         const deltaSeconds = (dx / this.element.parentElement.clientWidth) * this.totalDuration;
         sides.forEach((side) => {
             this[side] += deltaSeconds;
-            if (side === 'start') {
-                this.start = Math.max(0, Math.min(this.start, this.end));
-                const element = document.querySelector('[data-matching="' + this.id + '"]');
-                if (element && element.previousElementSibling) {
-                const prevElement = element.previousElementSibling;
-                const dataMatchingValue = prevElement.getAttribute('end-time');
-                if ( dataMatchingValue >= this.start ) {
-                    //this.start = dataMatchingValue;
-                    this.start = Math.max(0, Math.min(dataMatchingValue, this.end));
-                }
-                }
-            }
-            else {
-                this.end = Math.max(this.start, Math.min(this.end, this.totalDuration));
-                const element = document.querySelector('[data-matching="' + this.id + '"]');
-                if (element && element.nextElementSibling) {
-                    const nextElement = element.nextElementSibling;
-                    const dataMatchingValue = nextElement.getAttribute('start-time');
-                    const endTimeValue = nextElement.getAttribute('end-time');
-                    if (dataMatchingValue && endTimeValue) {
-                        if ( dataMatchingValue <= this.end ) {
-                            //this.start = dataMatchingValue;
-                            this.end = Math.max(this.start, Math.min(dataMatchingValue, this.totalDuration));
-                        }
-                    }
-                }
-            }
+            this.end = Math.max(this.start, Math.min(this.end, this.totalDuration));
         });
-        this.renderPosition(action_resize);
+        this.renderPosition();
         this.emit('update');
     }
     onMove(dx) {
@@ -238,17 +176,30 @@ export class Region extends EventEmitter {
         this.onUpdate(dx, ['start', 'end']);
     }
     onResize(dx, side) {
-        if (!this.resize)
-        return;
-        let action_resize;
-        if (side === 'start') {
-            action_resize = 'left';
-            //console.log('Left side is being resized.');
-        } else if (side === 'end') {
-            action_resize = 'right';
-            //console.log('Right side is being resized.');
+        if (!this.resize) return;
+
+        if (side === 'end') {
+            const nextRegion = this.plugin.getNextRegion(this); // 정상 작동
+            const previousEndTime = this.end;
+
+            // 크기 조정
+            this.onUpdate(dx, [side]);
+
+            if (nextRegion) {
+                // 현재 region의 end와 다음 region의 start를 맞추기
+                nextRegion.start = this.end; // 항상 같게 유지
+                nextRegion.renderPosition();
+            }
+        } else {
+            return
+            this.onUpdate(dx, [side]);
         }
-        this.onUpdate(dx, [side], action_resize);
+    }
+
+    // RegionsPlugin 클래스에 추가
+    getNextRegion(currentRegion) {
+        const currentIndex = this.regions.findIndex(region => region === currentRegion);
+        return this.regions[currentIndex + 1] || null;
     }
     onEndResizing() {
         if (!this.resize)
@@ -288,10 +239,30 @@ export class Region extends EventEmitter {
     }
     /** Remove the region */
     remove() {
+        // 모든 region 가져오기
+        const allRegions = this.plugin.regions;
+        
+        // 현재 region의 인덱스 찾기
+        const currentIndex = allRegions.findIndex(r => r === this);
+        
+        // 이전과 다음 region 찾기
+        const prevRegion = currentIndex > 0 ? allRegions[currentIndex - 1] : null;
+        const nextRegion = currentIndex < allRegions.length - 1 ? allRegions[currentIndex + 1] : null;
+    
+        // 이전 region이 있고 다음 region이 있다면
+        if (prevRegion && nextRegion) {
+            nextRegion.start = prevRegion.end;
+            nextRegion.renderPosition();
+            
+            // input_box의 start-time도 업데이트
+            const nextInputBox = document.querySelector(`[data-matching="${nextRegion.id}"]`);
+            if (nextInputBox) {
+                nextInputBox.setAttribute('start-time', prevRegion.end);
+            }
+        }
+    
         this.emit('remove');
         this.element.remove();
-        // This violates the type but we want to clean up the DOM reference
-        // w/o having to have a nullable type of the element
         this.element = null;
     }
 }
@@ -301,6 +272,10 @@ class RegionsPlugin extends BasePlugin {
         super(options);
         this.regions = [];
         this.regionsContainer = this.initRegionsContainer();
+    }
+    getNextRegion(currentRegion) {
+        const currentIndex = this.regions.findIndex(region => region === currentRegion);
+        return this.regions[currentIndex + 1] || null;
     }
     /** Create an instance of RegionsPlugin */
     static create(options) {
@@ -386,7 +361,7 @@ class RegionsPlugin extends BasePlugin {
             throw Error('WaveSurfer is not initialized');
         }
         const duration = this.wavesurfer.getDuration();
-        const region = new Region(options, duration);
+        const region = new Region(options, duration, this); // this를 plugin 인스턴스로 전달
         if (!duration) {
             this.subscriptions.push(this.wavesurfer.once('ready', (duration) => {
                 region._setTotalDuration(duration);
